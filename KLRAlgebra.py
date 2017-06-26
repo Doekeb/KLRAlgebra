@@ -19,6 +19,9 @@ class BasisElement(CombinatorialFreeModuleElement):
 	def _get_print_name(self):
 		raise NotImplementedError
 
+	def tikz(self):
+		raise NotImplementedError
+
 class XTElement(BasisElement):
 
 	#Correct order
@@ -231,6 +234,18 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 
 		TX_to_XT.register_as_coercion()
 		XT_to_TX.register_as_coercion()
+
+
+		# PLAYING AROUND WITH PRINTING STUFF.........
+
+		# defaults = ('dot_symbol':'x', 'crossing_symbol':'t', 'strand_symbol':'e')
+		# for arg in kwargs:
+		# 	if arg not in defaults:
+		# 		raise ValueError('%s is not a valid print option'%arg)
+		# self._print_options = {key:kwargs.get(key, defaults[key]) for key in defaults}
+		#
+		# for realization in self.realizations():
+
 
 	def _repr_(self):
 		r"""
@@ -498,6 +513,28 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 				v = self._IVn((0,)*self._n)
 				g = self._Sn(())
 				p = self._P(p)
+				return self.monomial(self._CP((v, g, p)))
+
+			def longest_crossing(self):
+				return self.t(self.symmetric_group().long_element())
+
+			# Do I have the best way of inputting parameters? It seems clunky
+			# and unintuitive... Should I handle errors?
+			def divided_power_idempotent(self, *args):
+				the_is, the_ms = [arg[0] for arg in args], [arg[1] for arg in args]
+				my_groups = []
+				v = []
+				start = 1
+				for m in the_ms:
+					end = start + m
+					my_groups += [SymmetricGroup(range(start, end))]
+					v += range(end-start)
+					start = end
+
+				g = self._Sn.prod([self._Sn(G.long_element()) for G in my_groups])
+				p = self._P(sum([(the_is[i],)*the_ms[i] for i in range(len(the_is))], ()))
+				v = self._IVn(tuple(v))
+
 				return self.monomial(self._CP((v, g, p)))
 
 			def one(self):
@@ -1365,19 +1402,19 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 
 # FOR TESTING:
 
-# RS = RootSystem(["A", 3])
-# RL = RS.root_lattice()
-# alpha = RL.basis()
-# a = 2*alpha[1]+alpha[2]+alpha[3]
-# K = KLRAlgebra(ZZ, a)
-# KXT = K.XT()
-# KTX = K.TX()
-# #x,t,e = KTX.x,KTX.t,KTX.e
-# x,t,e = KXT.x,KXT.t,KXT.e
-# y,s,f = KTX.x,KTX.t,KTX.e
-#
-# #elt = x((1,2,3,4))*t((1,2,3,4))*e((1,1,2,3))
-# elt = t((1,2,3,4))*e((1,1,2,3))
+RS = RootSystem(["A", 3])
+RL = RS.root_lattice()
+alpha = RL.basis()
+a = 2*alpha[1]+alpha[2]+alpha[3]
+K = KLRAlgebra(ZZ, a)
+KXT = K.XT()
+KTX = K.TX()
+#x,t,e = KTX.x,KTX.t,KTX.e
+x,t,e = KXT.x,KXT.t,KXT.e
+y,s,f = KTX.x,KTX.t,KTX.e
+
+#elt = x((1,2,3,4))*t((1,2,3,4))*e((1,1,2,3))
+elt = t((1,2,3,4))*e((1,1,2,3))
 
 
 
