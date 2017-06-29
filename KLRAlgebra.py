@@ -7,6 +7,15 @@ from sage.misc.bindable_class import BindableClass
 from sage.combinat.integer_vector import IntegerVectors_k
 from sage.categories.realizations import Category_realization_of_parent
 
+RS = RootSystem(['A',4])
+RL = RS.root_lattice()
+alpha = RL.basis()
+a = alpha[1]+alpha[2]+alpha[3]+alpha[4]
+H = KLRAlgebra(ZZ, a)
+XT, TX = H.XT(), H.TX()
+x,t,e = TX.x, TX.t, TX.e
+w,s,d = XT.x, XT.t, XT.e
+
 class BasisElement(CombinatorialFreeModuleElement):
 	def __init__(self, *args, **kwds):
 
@@ -19,8 +28,28 @@ class BasisElement(CombinatorialFreeModuleElement):
 	def _get_print_name(self):
 		raise NotImplementedError
 
-	def tikz(self):
-		raise NotImplementedError
+	def tikz(self, x_sep=0.5, y_sep=0.3):
+		the_string = ""
+		mcs = self.monomial_coefficients()
+		first_term=True
+		min_height = Infinity
+		for monomial in mcs:
+			my_mon = self.parent().monomial(monomial)
+			rw = my_mon._get_reduced_word()
+			iv = my_mon.get_integer_vector()
+			l = len(rw)
+			max_dots = max(iv)
+			dot_space = ceil((max_dots+2)/3.0)*y_sep
+			this_height = (y_sep*(l+2)+dot_space)/2
+			if this_height < min_height:
+				min_height = this_height
+		the_terms = []
+		for monomial in mcs:
+			the_terms += ["\n"+self.parent().monomial(monomial)._tikz_monomial(x_sep=x_sep, y_sep=y_sep, coeff=mcs[monomial], first_term=first_term, coeff_height=min_height)]
+			first_term=False
+		for term in the_terms:
+			the_string += term
+		return the_string[1:]
 
 class XTElement(BasisElement):
 
@@ -52,16 +81,20 @@ class XTElement(BasisElement):
 
 	#Wrong order
 	def _tikz_monomial(self, x_sep=0.5, y_sep=0.3, coeff=1, first_term=True, coeff_height=None):
-		rw = self._get_reduced_word()
+		rw = self._get_reduced_word()[::-1]
 		iv = self.get_integer_vector()
 		perm = self.get_permutation()
 		n = self._n
 		l = len(rw)
 		max_dots = max(iv)
-		dot_space = ceil((max_dots+2)/3.0)*y_sep
+		if max_dots == 0:
+			dot_space = 0
+		else:
+			dot_space = ceil((max_dots+2)/3.0)*y_sep
+		print dot_space
 		if coeff_height == None:
 			coeff_height = (y_sep*(l+2)+dot_space)/2
-		front_matter = "\\begin{tikzpicture}\n\t\\foreach \\x in {1, ..., %s}\n\t\t\\node (\\x_-1) at (%s*\\x, %s){};\n\t\\foreach \\x in {1, ..., %s}\n\t\t\\foreach \\y in {0, ..., %s}\n\t\t\t\\node (\\x_\\y) at (%s*\\x, %s*\\y){};\n"%(n, x_sep, -dot_space, n, l+2, x_sep, y_sep)
+		front_matter = "\\begin{tikzpicture}\n\t\\foreach \\x in {1, ..., %s}\n\t\t\\node (\\x_-1) at (%s*\\x, %s){};\n\t\\foreach \\x in {1, ..., %s}\n\t\t\\foreach \\y in {0, ..., %s}\n\t\t\t\\node (\\x_\\y) at (%s*\\x, %s*\\y){};\n"%(n, x_sep, y_sep*(l+2)+dot_space, n, l+2, x_sep, y_sep)
 		if coeff == 1:
 			coeff = ""
 		else:
@@ -69,9 +102,9 @@ class XTElement(BasisElement):
 
 
 		if first_term:
-			end_matter = "\t\\node[on grid, above=%s of 1_-1] (temp) {};\n\t\\node[left=0 of temp]{$%s$};\n\\end{tikzpicture}"%(coeff_height, coeff)
+			end_matter = "\t\\node[on grid, below=%s of 1_-1] (temp) {};\n\t\\node[left=0 of temp]{$%s$};\n\\end{tikzpicture}"%(coeff_height, coeff)
 		else:
-			end_matter = "\t\\node[on grid, above=%s of 1_-1] (temp) {};\n\t\\node[left=0 of temp]{$+%s$};\n\\end{tikzpicture}"%(coeff_height, coeff)
+			end_matter = "\t\\node[on grid, below=%s of 1_-1] (temp) {};\n\t\\node[left=0 of temp]{$+%s$};\n\\end{tikzpicture}"%(coeff_height, coeff)
 
 
 
@@ -86,16 +119,16 @@ class XTElement(BasisElement):
 		for i in colors:
 			color_string += "\t\\definecolor{color%s}{HTML}{%s}\n"%(i, colors[i][1:].upper())
 
-		strands = {i:"\t\\draw [color=color%s] (%s_-1.center)--(%s_0.center)--(%s_1.center)"%(perm[i-1], i, i, i) for i in range(1,n+1)}
+		strands = {i:"\t\\draw [color=color%s] (%s_0.center)--(%s_1.center)"%(perm[i-1], i, i) for i in range(1,n+1)}
 		for i in range(l):
 			strands[rw[i]], strands[rw[i]+1] = (strands[rw[i]+1]+"--(%s_%s.center)"%(rw[i], i+2), strands[rw[i]]+"--(%s_%s.center)"%(rw[i]+1, i+2))
 			for j in range(1, n+1):
 				if j != rw[i] and j != rw[i]+1:
 					strands[j] += "--(%s_%s.center)"%(j, i+2)
 		for j in range(1, n+1):
-			strands[j] += "--(%s_%s.center);\n"%(j, l+2)
+			strands[j] += "--(%s_%s.center)--(%s_-1.center);\n"%(j, l+2, j)
 
-		dots = {i:"\t\\foreach \\y in {1, ..., %s}\n\t\t\\node[on grid, circle, fill, inner sep=1pt, above=%s/%s*\\y of %s_-1]{};\n"%(iv[i-1], dot_space, iv[i-1]+1, i) for i in range(1, n+1)}
+		dots = {i:"\t\\foreach \\y in {1, ..., %s}\n\t\t\\node[on grid, circle, fill, inner sep=1pt, below=%s/%s*\\y of %s_-1]{};\n"%(iv[i-1], dot_space, iv[i-1]+1, i) for i in range(1, n+1)}
 
 
 		the_string = front_matter+color_string
@@ -138,13 +171,17 @@ class TXElement(BasisElement):
 
 	#Correct Order
 	def _tikz_monomial(self, x_sep=0.5, y_sep=0.3, coeff=1, first_term=True, coeff_height=None):
-		rw = self._get_reduced_word()
+		rw = self._get_reduced_word()[::-1]
 		iv = self.get_integer_vector()
 		perm = self.get_permutation()
 		n = self._n
 		l = len(rw)
 		max_dots = max(iv)
-		dot_space = ceil((max_dots+2)/3.0)*y_sep
+		if max_dots == 0:
+			dot_space = 0
+		else:
+			dot_space = ceil((max_dots+2)/3.0)*y_sep
+		print dot_space
 		if coeff_height == None:
 			coeff_height = (y_sep*(l+2)+dot_space)/2
 		front_matter = "\\begin{tikzpicture}\n\t\\foreach \\x in {1, ..., %s}\n\t\t\\node (\\x_-1) at (%s*\\x, %s){};\n\t\\foreach \\x in {1, ..., %s}\n\t\t\\foreach \\y in {0, ..., %s}\n\t\t\t\\node (\\x_\\y) at (%s*\\x, %s*\\y){};\n"%(n, x_sep, -dot_space, n, l+2, x_sep, y_sep)
@@ -1401,7 +1438,7 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 
 
 # FOR TESTING:
-
+'''
 RS = RootSystem(["A", 3])
 RL = RS.root_lattice()
 alpha = RL.basis()
@@ -1415,7 +1452,7 @@ y,s,f = KTX.x,KTX.t,KTX.e
 
 #elt = x((1,2,3,4))*t((1,2,3,4))*e((1,1,2,3))
 elt = t((1,2,3,4))*e((1,1,2,3))
-
+'''
 
 
 
