@@ -82,7 +82,6 @@ class XTElement(BasisElement):
 			dot_space = 0
 		else:
 			dot_space = ceil((max_dots+2)/3.0)*y_sep
-		print dot_space
 		if coeff_height == None:
 			coeff_height = (y_sep*(l+2)+dot_space)/2
 		front_matter = "\\begin{tikzpicture}\n\t\\foreach \\x in {1, ..., %s}\n\t\t\\node (\\x_-1) at (%s*\\x, %s){};\n\t\\foreach \\x in {1, ..., %s}\n\t\t\\foreach \\y in {0, ..., %s}\n\t\t\t\\node (\\x_\\y) at (%s*\\x, %s*\\y){};\n"%(n, x_sep, y_sep*(l+2)+dot_space, n, l+2, x_sep, y_sep)
@@ -172,7 +171,6 @@ class TXElement(BasisElement):
 			dot_space = 0
 		else:
 			dot_space = ceil((max_dots+2)/3.0)*y_sep
-		print dot_space
 		if coeff_height == None:
 			coeff_height = (y_sep*(l+2)+dot_space)/2
 		front_matter = "\\begin{tikzpicture}\n\t\\foreach \\x in {1, ..., %s}\n\t\t\\node (\\x_-1) at (%s*\\x, %s){};\n\t\\foreach \\x in {1, ..., %s}\n\t\t\\foreach \\y in {0, ..., %s}\n\t\t\t\\node (\\x_\\y) at (%s*\\x, %s*\\y){};\n"%(n, x_sep, -dot_space, n, l+2, x_sep, y_sep)
