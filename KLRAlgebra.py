@@ -7,15 +7,6 @@ from sage.misc.bindable_class import BindableClass
 from sage.combinat.integer_vector import IntegerVectors_k
 from sage.categories.realizations import Category_realization_of_parent
 
-RS = RootSystem(['A',4])
-RL = RS.root_lattice()
-alpha = RL.basis()
-a = alpha[1]+alpha[2]+alpha[3]+alpha[4]
-H = KLRAlgebra(ZZ, a)
-XT, TX = H.XT(), H.TX()
-x,t,e = TX.x, TX.t, TX.e
-w,s,d = XT.x, XT.t, XT.e
-
 class BasisElement(CombinatorialFreeModuleElement):
 	def __init__(self, *args, **kwds):
 
