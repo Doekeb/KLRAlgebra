@@ -70,7 +70,7 @@ class XTElement(BasisElement):
 			return new_name
 		return "0"
 
-	#Wrong order
+	#TODO: Fix coefficient height
 	def _tikz_monomial(self, x_sep=0.5, y_sep=0.3, coeff=1, first_term=True, coeff_height=None):
 		rw = self._get_reduced_word()[::-1]
 		iv = self.get_integer_vector()
