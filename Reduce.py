@@ -55,12 +55,139 @@ def reduce(word):
 	# minimal unreduced word, before position 0. Straighten this piece.
 	return reduce(word[:j+1] + straighten(word[j+1:i+1]) + word[i+1:])
 
+def reduce_full(word):
+	# If we aren't reduced yet, reduce first
+	if len(word) != g_ify(word).length():
+		return reduce_full(reduce(word))
+
+	target = reduced_words(g_ify(word))
+
+	word = list(word)
+	my_move = get_move(tuple(word), target)
+	print my_move
+	while my_move[0] != "n":
+		if my_move[0] == "s":
+			i = my_move[1]
+			assert abs(word[i]-word[i+1]) > 1
+			word[i], word[i+1] = word[i+1], word[i]
+			#print tuple(word)
+		elif my_move[0] == "b":
+			i = my_move[1]
+			assert word[i] == word[i+2] and abs(word[i+1] - word[i]) == 1
+			word[i], word[i+1], word[i+2] = word[i+1], word[i], word[i+1]
+			#print tuple(word)
+		my_move = get_move(tuple(word), target)
+		print my_move
+
+	return tuple(word)
+
+def get_move(word, target):
+	assert g_ify(word) == g_ify(target)
+	if word == target:
+		return ["n", 0]
+
+	# Check to see how far we match the target
+	i = 0
+	try:
+		while word[i] == target[i]:
+			i += 1
+	# Error is thrown if nothing matches. We don't care.
+	except IndexError:
+		pass
+
+	# If anything matches, just check the leftovers.
+	if i > 0:
+		my_move = get_move(word[i:], target[i:])
+		my_move[1] += i
+		return my_move
+
+	# Now the beginning doesn't match. Find where the target first crossing
+	# crosses in word.
+	temp = (target[0],) + word
+	j = 0
+	while g_ify(temp[:j]).length() == j:
+		j += 1
+	j -= 2
+	# j is now the index at which the distinguished strands cross in word.
+	return float_move(word[:j+1])
+
+'''
+give a move which floats the bottom crossing to the top
+'''
+def float_move(word):
+	# if the two bottom crossings are far apart, just move them past
+	# each other for free. Do this until you can't anymore or until the crossing
+	# is all the way at the top.
+	j = len(word)-1
+	if j > 0 and abs(word[j] - word[j-1]) > 1:
+		return ['s', j-1]
+
+	# Now we can assume that the crossing of interest is as far up as possible.
+	# If it's at the top, then we are done with this part, just go back to
+	# reduce_full
+	# if j == 0:
+	# 	return word
+
+	# Now we can assume it got stuck on some adjacent transposition.
+	#print word, j
+	i = find_crossing(word)
+	if i == j-2:
+		return ['b', j-2]
+	my_move = sink_move(word[i:])
+	my_move[1] += i
+	return my_move
+
+'''
+give a move which floats the top crossing to the bottom
+'''
+def sink_move(word):
+	my_move = float_move(word[::-1])
+	if my_move[0] == "s":
+		my_move[1] = len(word) - 2 - my_move[1]
+	elif my_move[0] == "b":
+		my_move[1] = len(word) - 3 - my_move[1]
+	return my_move
+
+'''
+floats the bottom crossing to the top
+'''
+@cached_method
+def float(word):
+	# if the two bottom crossings are far apart, just move them past
+	# each other for free. Do this until you can't anymore or until the crossing
+	# is all the way at the top.
+	j = len(word)-1
+	while j > 0 and abs(word[j] - word[j-1]) > 1:
+		word = list(word)
+		word[j], word[j-1] = word[j-1], word[j]
+		word = tuple(word)
+		j -= 1
+
+	# Now we can assume that the crossing of interest is as far up as possible.
+	# If it's at the top, then we are done with this part, just go back to
+	# reduce_full
+	if j == 0:
+		return word
+
+	# Now we can assume it got stuck on some adjacent transposition.
+	#print word, j
+	i = find_crossing(word[:j+1])
+	assert i < j-1
+	word = word[:i] + sink(word[i:j-1]) + word[j-1:]
+	assert word[j] == word[j-2]
+	assert word[j-1] == word[j]-1 or word[j-1] == word[j]+1
+	word = list(word)
+	word[j], word[j-1], word[j-2] = word[j-1], word[j], word[j-1]
+	word = tuple(word)
+
+	return float(word[:j-1])+word[j-1:]
+
 
 '''
 preamble is just for use in printing the entire algorithm
 '''
 @cached_method
-def reduce_full(word, target=None):
+def OLDreduce_full(word, target=None):
 
 	# If we aren't reduced yet, reduce first
 	if len(word) != g_ify(word).length():
@@ -108,41 +235,6 @@ def reduce_full(word, target=None):
 	j -= 1
 	# Use this other method to move that crossing all the way up
 	return reduce_full(float(word[:j]) + word[j:], target=target)
-
-
-'''
-floats the bottom crossing to the top
-'''
-@cached_method
-def float(word):
-	# if the two bottom crossings are far apart, just move them past
-	# each other for free. Do this until you can't anymore or until the crossing
-	# is all the way at the top.
-	j = len(word)-1
-	while j > 0 and abs(word[j] - word[j-1]) > 1:
-		word = list(word)
-		word[j], word[j-1] = word[j-1], word[j]
-		word = tuple(word)
-		j -= 1
-
-	# Now we can assume that the crossing of interest is as far up as possible.
-	# If it's at the top, then we are done with this part, just go back to
-	# reduce_full
-	if j == 0:
-		return word
-
-	# Now we can assume it got stuck on some adjacent transposition.
-	#print word, j
-	i = find_crossing(word[:j+1])
-	assert i < j-1
-	word = word[:i] + sink(word[i:j-1]) + word[j-1:]
-	assert word[j] == word[j-2]
-	assert word[j-1] == word[j]-1 or word[j-1] == word[j]+1
-	word = list(word)
-	word[j], word[j-1], word[j-2] = word[j-1], word[j], word[j-1]
-	word = tuple(word)
-
-	return float(word[:j-1])+word[j-1:]
 
 
 '''
