@@ -651,7 +651,81 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 				return -1
 
 			@cached_method
-			def _shuffle(self, word, p, Graph=None):
+			def _get_move(self, word, target):
+				if word == target:
+					return ("n", 0)
+
+
+				assert len(word) == len(target)
+
+				# Check to see how far we match the target
+				i = 0
+				try:
+					while word[i] == target[i]:
+						i += 1
+				# Error is thrown if nothing matches. We don't care.
+				except IndexError:
+					pass
+
+				# If anything matches, just check the leftovers.
+				if i > 0:
+					my_move = list(self._get_move(word[i:], target[i:]))
+					my_move[1] += i
+					return tuple(my_move)
+
+				# Now the beginning doesn't match. Find where the target first crossing
+				# crosses in word.
+				temp = (target[0],) + word
+				j = 0
+				while self._g_ify(temp[:j]).length() == j:
+					j += 1
+				j -= 2
+				# j is now the index at which the distinguished strands cross in word.
+				return self._float_move(word[:j+1])
+
+			'''
+			give a move which floats the bottom crossing to the top
+			'''
+			@cached_method
+			def _float_move(self, word):
+				# if the two bottom crossings are far apart, just move them past
+				# each other for free. Do this until you can't anymore or until the crossing
+				# is all the way at the top.
+				j = len(word)-1
+				if j > 0 and abs(word[j] - word[j-1]) > 1:
+					return ('s', j-1)
+
+				# Now we can assume that the crossing of interest is as far up as possible.
+				# If it's at the top, then we are done with this part, just go back to
+				# reduce_full
+				# if j == 0:
+				# 	return word
+
+				# Now we can assume it got stuck on some adjacent transposition.
+				#print word, j
+				i = self._find_crossing(word)
+				if i == j-2:
+					return ('b', j-2)
+				my_move = list(self._sink_move(word[i:]))
+				my_move[1] += i
+				return tuple(my_move)
+
+			'''
+			give a move which floats the top crossing to the bottom
+			'''
+			@cached_method
+			def _sink_move(self, word):
+				my_move = list(self._float_move(word[::-1]))
+				if my_move[0] == "s":
+					my_move[1] = len(word) - 2 - my_move[1]
+				elif my_move[0] == "b":
+					my_move[1] = len(word) - 3 - my_move[1]
+				return tuple(my_move)
+
+			# ALMOST READY TO REWRITE THIS ACCORDING TO Reduce.py SO THE
+			# COMPUTATIONS WILL ACTUALLY TERMINATE!
+			@cached_method
+			def _shuffle(self, word, p):
 				r"""
 				Returns an element of this KLR algebra which is equal to the product of the generators corresponding to the reduced word "word" and the idempotent determined by p
 
@@ -673,18 +747,15 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 					v = self._IVn((0,)*self._n)
 					return self.monomial(self._CP((v, g, p)))
 
-				if Graph == None:
-					G = g.reduced_word_graph()
-				else:
-					G = Graph
+				my_move = self._get_move(word, good_word)
+				word = list(word)
+				while my_move[0] == 's':
+					i = my_move[1]
+					word[i], word[i+1] = word[i+1], word[i]
+					my_move = self._get_move(tuple(word), good_word)
+				word = tuple(word)
 
-				SP = G.shortest_path(word, good_word)
-				i = 0
-				try:
-					while G.edge_label(SP[i], SP[i+1]) == 2:
-						i += 1
-					current_word = tuple(list(SP[i]))
-				except IndexError:
+				if my_move[0] == 'n':
 					v = self._IVn((0,)*self._n)
 					return self.monomial(self._CP((v, g, p)))
 
@@ -693,20 +764,47 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 				# Now there IS a next word, and the current word and next word differ by a braid relation.
 				# Find the index at which this braid relation occurs. i is the index along SP at which
 				# current_word lies.
-				next_word = tuple(list(SP[i+1]))
-				j = 0
-				while current_word[j] == next_word[j]:
-					j += 1
+				j = my_move[1]
+				next_word = word[:j] + (word[j+1], word[j], word[j+1]) + word[j+3:]
 
 				# Now j is the first index at which current_word and next_word differ
 
 
 				# end --> j+3, word --> current_word
 
-				new_p_m = self._P(self._g_ify(current_word[j+3:])(tuple(p)))
-				if current_word[j+1] == current_word[j+2] + 1:
-					k = current_word[j+2]
-					new = self._shuffle(current_word[:j]+(current_word[j+1], current_word[j+2], current_word[j+1])+current_word[j+3:], p, Graph=G)
+				#OLLLLLLDDDDD
+				# new_p_m = self._P(self._g_ify(current_word[j+3:])(tuple(p)))
+				# if current_word[j+1] == current_word[j+2] + 1:
+				# 	k = current_word[j+2]
+				# 	new = self._shuffle(current_word[:j]+(current_word[j+1], current_word[j+2], current_word[j+1])+current_word[j+3:], p)
+				# 	c_ij = self.cartan_matrix()[new_p_m[k-1]-1][new_p_m[k]-1]
+				# 	if c_ij < 0 and new_p_m[k-1] == new_p_m[k+1]:
+				# 		new_g_m = self._Sn(())
+				# 		new_p_r = p
+				# 		new_p_l = new_p_m
+				# 		for r in range(-c_ij):
+				# 			new_v_m = self._IVn((0,)*(k-1) + (r,) + (0,) + (-1-c_ij-r,) + (0,)*(self._n-k-2))
+				# 			new -= self.signs(pair=(new_p_m[k-1]-1, new_p_m[k]-1)) * (self._reduce(current_word[:j], new_p_l) * self.monomial(self._CP((new_v_m, new_g_m, new_p_m))) * self._reduce(current_word[j+3:], new_p_r))
+				# 	return new
+				#
+				# if current_word[j+1] == current_word[j+2] - 1:
+				# 	k = current_word[j+1]
+				# 	new = self._shuffle(current_word[:j]+(current_word[j+1], current_word[j+2], current_word[j+1])+current_word[j+3:], p)
+				# 	c_ij = self.cartan_matrix()[new_p_m[k-1]-1][new_p_m[k]-1]
+				# 	if c_ij < 0 and new_p_m[k-1] == new_p_m[k+1]:
+				# 		new_g_m = self._Sn(())
+				# 		new_p_r = p
+				# 		new_p_l = new_p_m
+				# 		for r in range(-c_ij):
+				# 			new_v_m = self._IVn((0,)*(k-1) + (r,) + (0,) + (-1-c_ij-r,) + (0,)*(self._n-k-2))
+				# 			new += self.signs(pair=(new_p_m[k-1]-1, new_p_m[k]-1)) * (self._reduce(current_word[:j], new_p_l) * self.monomial(self._CP((new_v_m, new_g_m, new_p_m))) * self._reduce(current_word[j+3:], new_p_r))
+				# 	return new
+
+				# NEWWWWWWWWWW
+				new_p_m = self._P(self._g_ify(word[j+3:])(tuple(p)))
+				if word[j+1] == word[j+2] + 1:
+					k = word[j+2]
+					new = self._shuffle(word[:j]+(word[j+1], word[j+2], word[j+1])+word[j+3:], p)
 					c_ij = self.cartan_matrix()[new_p_m[k-1]-1][new_p_m[k]-1]
 					if c_ij < 0 and new_p_m[k-1] == new_p_m[k+1]:
 						new_g_m = self._Sn(())
@@ -714,12 +812,12 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 						new_p_l = new_p_m
 						for r in range(-c_ij):
 							new_v_m = self._IVn((0,)*(k-1) + (r,) + (0,) + (-1-c_ij-r,) + (0,)*(self._n-k-2))
-							new -= self.signs(pair=(new_p_m[k-1]-1, new_p_m[k]-1)) * (self._reduce(current_word[:j], new_p_l) * self.monomial(self._CP((new_v_m, new_g_m, new_p_m))) * self._reduce(current_word[j+3:], new_p_r))
+							new -= self.signs(pair=(new_p_m[k-1]-1, new_p_m[k]-1)) * (self._reduce(word[:j], new_p_l) * self.monomial(self._CP((new_v_m, new_g_m, new_p_m))) * self._reduce(word[j+3:], new_p_r))
 					return new
 
-				if current_word[j+1] == current_word[j+2] - 1:
-					k = current_word[j+1]
-					new = self._shuffle(current_word[:j]+(current_word[j+1], current_word[j+2], current_word[j+1])+current_word[j+3:], p, Graph=G)
+				if word[j+1] == word[j+2] - 1:
+					k = word[j+1]
+					new = self._shuffle(word[:j]+(word[j+1], word[j+2], word[j+1])+word[j+3:], p)
 					c_ij = self.cartan_matrix()[new_p_m[k-1]-1][new_p_m[k]-1]
 					if c_ij < 0 and new_p_m[k-1] == new_p_m[k+1]:
 						new_g_m = self._Sn(())
@@ -727,7 +825,7 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 						new_p_l = new_p_m
 						for r in range(-c_ij):
 							new_v_m = self._IVn((0,)*(k-1) + (r,) + (0,) + (-1-c_ij-r,) + (0,)*(self._n-k-2))
-							new += self.signs(pair=(new_p_m[k-1]-1, new_p_m[k]-1)) * (self._reduce(current_word[:j], new_p_l) * self.monomial(self._CP((new_v_m, new_g_m, new_p_m))) * self._reduce(current_word[j+3:], new_p_r))
+							new += self.signs(pair=(new_p_m[k-1]-1, new_p_m[k]-1)) * (self._reduce(word[:j], new_p_l) * self.monomial(self._CP((new_v_m, new_g_m, new_p_m))) * self._reduce(word[j+3:], new_p_r))
 					return new
 
 			@cached_method
@@ -946,7 +1044,7 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 
 				- The index at which the two distinguished strands above cross
 				"""
-				# Make a word with an extra crossing at the top, in particular a crossing of the two
+				# Make a word with an extra crossing at the bottom, in particular a crossing of the two
 				# strands of interest
 				temp = word+(word[-2],)
 
@@ -1447,16 +1545,15 @@ elt = t((1,2,3,4))*e((1,1,2,3))
 
 # GOOD FOR NIL-HECKE STUFF:
 '''
-RS = RootSystem(["A",Infinity])
+RS = RootSystem(["A",1])
 RL = RS.root_lattice()
 alpha = RL.basis()
-m = 4
+m = 5
 a = m*alpha[1]
-omega = [(i, m-i+1) for i in range(1, m/2+1)]
-K = KLRAlgebra(ZZ, RS, a)
-x, t, e = (K.x, K.t, K.e)
-T = t(omega)
-X = K.prod([x(i)**(i-1) for i in range(2, m+1)])
+K = KLRAlgebra(ZZ, a)
+TX = K.TX()
+x, t, e, f = TX.x, TX.t, TX.e, TX.divided_power_idempotent
+elt = f((1,m))
 '''
 
 
