@@ -1174,7 +1174,7 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 			v = elt[0]
 			p = elt[2]
 			left_p = self._P(elt[1](tuple(p)))
-			return self.monomial(self._CP((v, self._Sn(()), left_p))) * self._shuffle(word, p, Graph=elt[1].reduced_word_graph())
+			return self.monomial(self._CP((v, self._Sn(()), left_p))) * self._shuffle(word, p)
 
 		def _XTR_to_XT_on_basis(self, elt):
 			XT = self.realization_of().XT()
@@ -1182,7 +1182,7 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 			v = elt[0]
 			p = elt[2]
 			left_p = XT._P(elt[1](tuple(p)))
-			return XT.monomial(XT._CP((v, XT._Sn(()), left_p))) * XT._shuffle(word, p, Graph=elt[1].reduced_word_graph())
+			return XT.monomial(XT._CP((v, XT._Sn(()), left_p))) * XT._shuffle(word, p)
 
 
 		'''
@@ -1347,14 +1347,14 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 			word = tuple(TX.reduced_word(elt[1]))
 			v = elt[0]
 			p = elt[2]
-			return self._shuffle(word, p, Graph=elt[1].reduced_word_graph()) * self.monomial(self._CP((v, self._Sn(()), p)))
+			return self._shuffle(word, p) * self.monomial(self._CP((v, self._Sn(()), p)))
 
 		def _TXR_to_TX_on_basis(self, elt):
 			TX = self.realization_of().TX()
 			word = tuple(self.reduced_word(elt[1]))
 			v = elt[0]
 			p = elt[2]
-			return TX._shuffle(word, p, Graph=elt[1].reduced_word_graph()) * TX.monomial(TX._CP((v, TX._Sn(()), p)))
+			return TX._shuffle(word, p) * TX.monomial(TX._CP((v, TX._Sn(()), p)))
 
 		'''
 		called when we need to swap t with x
