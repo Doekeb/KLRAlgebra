@@ -1,11 +1,14 @@
 import sage
 from sage.rings.ring import Algebra
 from sage.structure.unique_representation import UniqueRepresentation
+from sage.structure.parent import Parent
 from sage.structure.element import AlgebraElement
-from sage.combinat.free_module import CombinatorialFreeModuleElement
+from sage.combinat.free_module import CombinatorialFreeModuleElement, CombinatorialFreeModule
 from sage.misc.bindable_class import BindableClass
 from sage.combinat.integer_vector import IntegerVectors_k
 from sage.categories.realizations import Category_realization_of_parent
+from sage.categories.graded_algebras import GradedAlgebras
+from sage.misc.cachefunc import cached_method
 
 class BasisElement(CombinatorialFreeModuleElement):
 	def __init__(self, *args, **kwds):
@@ -272,7 +275,6 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 		#
 		# for realization in self.realizations():
 
-
 	def _repr_(self):
 		r"""
 		Return the string representation of self.
@@ -432,6 +434,38 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 				for term in the_terms:
 					the_string += term
 				return the_string[1:]
+
+			def plot(self, coefficient_padding=1):
+				cp = coefficient_padding
+				par = self.parent()
+				mcs = self.monomial_coefficients()
+				width = par._n
+				heights = {mc:par.plot_on_basis(mc, height_only=True) for mc in mcs}
+				pieces = []
+				h_shift = 0
+				first_term = True
+				for mc in mcs:
+					if first_term:
+						if mcs[mc] == par.base_ring().one():
+							h_shift += 0
+						else:
+							coeff = text("$\\left(%s\\right)$"%latex(mcs[mc]), (h_shift, 0), color='black')
+							pieces += [coeff]
+							h_shift += cp
+					else:
+						if mcs[mc] == par.base_ring().one():
+							coeff = text("$+$", (h_shift, 0), color='black')
+						else:
+							coeff = text("$+\\left(%s\\right)$"%latex(mcs[mc]), (h_shift, 0), color='black')
+						pieces += [coeff]
+						h_shift += cp
+					first_term = False
+					pieces += [par.plot_on_basis(mc, h_shift=h_shift, v_shift=-heights[mc]/2.0)]
+					h_shift += width + cp - 1
+				G = sum(pieces)
+				G.axes(False)
+				G.set_aspect_ratio(1)
+				return G
 
 		class ParentMethods:
 			def _name(self):
@@ -1316,6 +1350,74 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 
 			return self.monomial(self._CP((new_v_l, new_g_l, new_p_l)))*(self._TX(left_g, right_v, left_p)*self.monomial(self._CP((new_v_r, new_g_r, new_p_r))))
 
+		def plot_on_basis(self, elt, v_shift=None, h_shift=None, height_only=False):
+			if v_shift == None:
+				v = 0
+			else:
+				v = v_shift
+			if h_shift == None:
+				h = 0
+			else:
+				h = h_shift
+
+			rw = self.reduced_word(elt[1])[::-1]
+			iv = elt[0]
+			perm = elt[2]
+			n = self._n
+			l = len(rw)
+
+			max_dots = max(iv)
+			# if max_dots == 0:
+			# 	dot_space = 0
+			# else:
+			# 	dot_space = ceil((max_dots+2)/3.0)
+			# #temp
+			if rw == []:
+				dot_space = max(1, max_dots/5.0)
+			else:
+				dot_space = max_dots/5.0
+
+			if height_only:
+				return dot_space+l
+
+			color_list = rainbow(len(set(perm)))
+			colors = {list(set(perm))[i]:color_list[i] for i in range(len(list(set(perm))))}
+
+			strands = {i:[(i-1+h, v)] for i in range(1,n+1)}
+			for i in range(l):
+				strands[rw[i]], strands[rw[i]+1] = strands[rw[i]+1]+[(rw[i]-1+h, i+1+v)], strands[rw[i]]+[(rw[i]+h, i+1+v)]
+				for j in range(1, n+1):
+					if j != rw[i] and j != rw[i]+1:
+						strands[j] += [(j-1+h, i+1+v)]
+			for j in range(1, n+1):
+				strands[j] += [(j-1+h, l+v+dot_space)]
+
+
+			# strands = {i:"\t\\draw [color=color%s] (%s_-1.center)--(%s_0.center)--(%s_1.center)"%(perm[i-1], i, i, i) for i in range(1,n+1)}
+			# for i in range(l):
+			# 	strands[rw[i]], strands[rw[i]+1] = (strands[rw[i]+1]+"--(%s_%s.center)"%(rw[i], i+2), strands[rw[i]]+"--(%s_%s.center)"%(rw[i]+1, i+2))
+			# 	for j in range(1, n+1):
+			# 		if j != rw[i] and j != rw[i]+1:
+			# 			strands[j] += "--(%s_%s.center)"%(j, i+2)
+			# for j in range(1, n+1):
+			# 	strands[j] += "--(%s_%s.center);\n"%(j, l+2)
+
+			the_lines = [line(strands[i], color=colors[perm[int(strands[i][0][0]-h)]]) for i in range(1, n+1)]
+
+
+			dots = []
+			for i in range(n):
+				n_dots = iv[i]
+				for j in range(n_dots):
+					dots += [circle((i+h, -(j+1)*dot_space/(n_dots+1.0) + v + l + dot_space), 0.05, fill=True, color='black')]
+
+
+
+			G = sum(the_lines)+sum(dots)
+			G.set_aspect_ratio(1)
+			G.axes(False)
+			return G
+
 	class TX(Basis):
 		r"""
 		Create the given KLR algebra.
@@ -1491,6 +1593,72 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 
 			return self.monomial(self._CP((new_v_l, new_g_l, new_p_l)))*(self._XT(right_g, left_v, right_p)*self.monomial(self._CP((new_v_r, new_g_r, new_p_r))))
 
+		def plot_on_basis(self, elt, v_shift=None, h_shift=None, height_only=False):
+			if v_shift == None:
+				v = 0
+			else:
+				v = v_shift
+			if h_shift == None:
+				h = 0
+			else:
+				h = h_shift
+
+			rw = self.reduced_word(elt[1])[::-1]
+			iv = elt[0]
+			perm = elt[2]
+			n = self._n
+			l = len(rw)
+
+			max_dots = max(iv)
+			# if max_dots == 0:
+			# 	dot_space = 0
+			# else:
+			# 	dot_space = ceil((max_dots+2)/3.0)
+			# #temp
+			if rw == []:
+				dot_space = max(1, max_dots/5.0)
+			else:
+				dot_space = max_dots/5.0
+
+			if height_only:
+				return dot_space+l
+
+			color_list = rainbow(len(set(perm)))
+			colors = {list(set(perm))[i]:color_list[i] for i in range(len(list(set(perm))))}
+
+			strands = {i:[(i-1+h, v), (i-1+h, v+dot_space)] for i in range(1,n+1)}
+			for i in range(l):
+				strands[rw[i]], strands[rw[i]+1] = strands[rw[i]+1]+[(rw[i]-1+h, i+1+v+dot_space)], strands[rw[i]]+[(rw[i]+h, i+1+v+dot_space)]
+				for j in range(1, n+1):
+					if j != rw[i] and j != rw[i]+1:
+						strands[j] += [(j-1+h, i+1+v+dot_space)]
+
+
+			# strands = {i:"\t\\draw [color=color%s] (%s_-1.center)--(%s_0.center)--(%s_1.center)"%(perm[i-1], i, i, i) for i in range(1,n+1)}
+			# for i in range(l):
+			# 	strands[rw[i]], strands[rw[i]+1] = (strands[rw[i]+1]+"--(%s_%s.center)"%(rw[i], i+2), strands[rw[i]]+"--(%s_%s.center)"%(rw[i]+1, i+2))
+			# 	for j in range(1, n+1):
+			# 		if j != rw[i] and j != rw[i]+1:
+			# 			strands[j] += "--(%s_%s.center)"%(j, i+2)
+			# for j in range(1, n+1):
+			# 	strands[j] += "--(%s_%s.center);\n"%(j, l+2)
+
+			the_lines = [line(strands[i], color=colors[perm[int(strands[i][0][0]-h)]]) for i in range(1, n+1)]
+
+
+			dots = []
+			for i in range(n):
+				n_dots = iv[i]
+				for j in range(n_dots):
+					dots += [circle((i+h, -(j+1)*dot_space/(n_dots+1.0) + v + dot_space), 0.05, fill=True, color='black')]
+
+
+
+			G = sum(the_lines)+sum(dots)
+			G.set_aspect_ratio(1)
+			G.axes(False)
+			return G
+
 
 # '''
 # Takes a list of positive integers and turns it into an S_n element by multiplying the
@@ -1525,21 +1693,24 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 
 
 # FOR TESTING:
-'''
-RS = RootSystem(["A", 3])
-RL = RS.root_lattice()
-alpha = RL.basis()
-a = 2*alpha[1]+alpha[2]+alpha[3]
-K = KLRAlgebra(ZZ, a)
-KXT = K.XT()
-KTX = K.TX()
-#x,t,e = KTX.x,KTX.t,KTX.e
-x,t,e = KXT.x,KXT.t,KXT.e
-y,s,f = KTX.x,KTX.t,KTX.e
+
+# RS = RootSystem(["A", 2])
+# RL = RS.root_lattice()
+# alpha = RL.basis()
+# a = 3*(alpha[1]+alpha[2])
+# A = GaussianIntegers()
+# j = A.basis()[1]
+# K = KLRAlgebra(ZZ, a)
+# KXT = K.XT()
+# KTX = K.TX()
+# #x,t,e = KTX.x,KTX.t,KTX.e
+# x,t,e = KXT.x,KXT.t,KXT.e
+#
+# elt = 33817*x((0,1,2,3,8,30))*t(((1,6,4),(2,3)))*e((1,1,1,2,2,2))+x((1,2,0,0,0,1))*e((1,1,2,2,1,2))-4002*t(1)*e((2,1,2,1,2,1))
 
 #elt = x((1,2,3,4))*t((1,2,3,4))*e((1,1,2,3))
-elt = t((1,2,3,4))*e((1,1,2,3))
-'''
+#elt = t((1,2,3,4))*e((1,1,2,3))
+
 
 
 
