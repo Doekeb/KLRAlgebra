@@ -435,7 +435,7 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 					the_string += term
 				return the_string[1:]
 
-			def plot(self, coefficient_padding=1):
+			def plot(self, coefficient_padding=1, **kwargs):
 				cp = coefficient_padding
 				par = self.parent()
 				mcs = self.monomial_coefficients()
@@ -449,18 +449,18 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 						if mcs[mc] == par.base_ring().one():
 							h_shift += 0
 						else:
-							coeff = text("$\\left(%s\\right)$"%latex(mcs[mc]), (h_shift, 0), color='black')
+							coeff = text("$\\left(%s\\right)$"%latex(mcs[mc]), (h_shift, 0), color='black', **kwargs)
 							pieces += [coeff]
 							h_shift += cp
 					else:
 						if mcs[mc] == par.base_ring().one():
-							coeff = text("$+$", (h_shift, 0), color='black')
+							coeff = text("$+$", (h_shift, 0), color='black', **kwargs)
 						else:
-							coeff = text("$+\\left(%s\\right)$"%latex(mcs[mc]), (h_shift, 0), color='black')
+							coeff = text("$+\\left(%s\\right)$"%latex(mcs[mc]), (h_shift, 0), color='black', **kwargs)
 						pieces += [coeff]
 						h_shift += cp
 					first_term = False
-					pieces += [par.plot_on_basis(mc, h_shift=h_shift, v_shift=-heights[mc]/2.0)]
+					pieces += [par.plot_on_basis(mc, h_shift=h_shift, v_shift=-heights[mc]/2.0, **kwargs)]
 					h_shift += width + cp - 1
 				G = sum(pieces)
 				G.axes(False)
@@ -1350,7 +1350,7 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 
 			return self.monomial(self._CP((new_v_l, new_g_l, new_p_l)))*(self._TX(left_g, right_v, left_p)*self.monomial(self._CP((new_v_r, new_g_r, new_p_r))))
 
-		def plot_on_basis(self, elt, v_shift=None, h_shift=None, height_only=False):
+		def plot_on_basis(self, elt, v_shift=None, h_shift=None, height_only=False, **kwargs):
 			if v_shift == None:
 				v = 0
 			else:
@@ -1402,14 +1402,14 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 			# for j in range(1, n+1):
 			# 	strands[j] += "--(%s_%s.center);\n"%(j, l+2)
 
-			the_lines = [line(strands[i], color=colors[perm[int(strands[i][0][0]-h)]]) for i in range(1, n+1)]
+			the_lines = [line(strands[i], color=colors[perm[int(strands[i][0][0]-h)]], **kwargs) for i in range(1, n+1)]
 
 
 			dots = []
 			for i in range(n):
 				n_dots = iv[i]
 				for j in range(n_dots):
-					dots += [circle((i+h, -(j+1)*dot_space/(n_dots+1.0) + v + l + dot_space), 0.05, fill=True, color='black')]
+					dots += [circle((i+h, -(j+1)*dot_space/(n_dots+1.0) + v + l + dot_space), 0.05, fill=True, color='black', **kwargs)]
 
 
 
@@ -1593,7 +1593,7 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 
 			return self.monomial(self._CP((new_v_l, new_g_l, new_p_l)))*(self._XT(right_g, left_v, right_p)*self.monomial(self._CP((new_v_r, new_g_r, new_p_r))))
 
-		def plot_on_basis(self, elt, v_shift=None, h_shift=None, height_only=False):
+		def plot_on_basis(self, elt, v_shift=None, h_shift=None, height_only=False, **kwargs):
 			if v_shift == None:
 				v = 0
 			else:
@@ -1643,14 +1643,14 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 			# for j in range(1, n+1):
 			# 	strands[j] += "--(%s_%s.center);\n"%(j, l+2)
 
-			the_lines = [line(strands[i], color=colors[perm[int(strands[i][0][0]-h)]]) for i in range(1, n+1)]
+			the_lines = [line(strands[i], color=colors[perm[int(strands[i][0][0]-h)]], **kwargs) for i in range(1, n+1)]
 
 
 			dots = []
 			for i in range(n):
 				n_dots = iv[i]
 				for j in range(n_dots):
-					dots += [circle((i+h, -(j+1)*dot_space/(n_dots+1.0) + v + dot_space), 0.05, fill=True, color='black')]
+					dots += [circle((i+h, -(j+1)*dot_space/(n_dots+1.0) + v + dot_space), 0.05, fill=True, color='black', **kwargs)]
 
 
 
