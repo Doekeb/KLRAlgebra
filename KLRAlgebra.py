@@ -320,6 +320,17 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 		"""
 		return self._cartan_matrix
 
+	def symmetric_form(self, left, right):
+		try:
+			return left.symmetric_form(right)
+		except AttributeError as e:
+			if self._root_system.cartan_type() == CartanType(["A", ZZ]):
+				mcl = left.monomial_coefficients()
+				mcr = right.monomial_coefficients()
+				return sum([mcl[i]*mcr[j]*self.cartan_matrix()[i-1][j-1] for i in mcl for j in mcr])
+			else:
+				raise e
+
 	def positive_root(self):
 		r"""
 		Return the positive root associated to this KLR Algebra (as an element of the root lattice of the root system associated to this KLR Algebra).
@@ -624,15 +635,7 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 				return self._Sn
 
 			def symmetric_form(self, left, right):
-				try:
-					return left.symmetric_form(right)
-				except AttributeError as e:
-					if self._root_system.cartan_type() == CartanType(["A", ZZ]):
-						mcl = left.monomial_coefficients()
-						mcr = right.monomial_coefficients()
-						return sum([mcl[i]*mcr[j]*self.cartan_matrix()[i-1][j-1] for i in mcl for j in mcr])
-					else:
-						raise e
+				return self.realization_of().symmetric_form(left, right)
 
 			def degree_on_basis(self, elt):
 				r"""
@@ -1144,9 +1147,17 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 			self._IVn = IntegerVectors_k(self._n)
 			IndexList = []
 			mcs = self._A.positive_root().monomial_coefficients()
+			alpha = self._A.root_system().root_lattice().basis()
+			ld = 0
 			for key in mcs:
-				IndexList += mcs[key]*[key]
+				k = mcs[key]
+				IndexList += k*[key]
+				ld -= ((k*(k-1))/2)*self._A.symmetric_form(alpha[key], alpha[key])
 			self._P = Permutations(IndexList)
+
+
+			self._least_degree = ld
+
 			self._CP = cartesian_product([self._IVn, self._Sn, self._P])
 
 			if reduced_words == None:
@@ -1315,6 +1326,12 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 			- The product left * right written in the distinguished basis
 
 			"""
+
+			# If the sum of degrees is smaller than the smallest degree in this
+			# algebra, return 0
+			if self.monomial(left).degree() + self.monomial(right).degree() < self._least_degree:
+				return self.zero()
+
 			left_p = left[2]
 			right_p = right[2]
 			left_g = left[1]
@@ -1557,6 +1574,12 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 			- The product left * right written in the distinguished basis
 
 			"""
+
+			# If the sum of degrees is smaller than the smallest degree in this
+			# algebra, return 0
+			if self.monomial(left).degree() + self.monomial(right).degree() < self._least_degree:
+				return self.zero()
+
 			left_p = left[2]
 			right_p = right[2]
 			left_g = left[1]
