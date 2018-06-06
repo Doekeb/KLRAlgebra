@@ -2,7 +2,7 @@ import sage
 from sage.rings.ring import Algebra
 from sage.structure.unique_representation import UniqueRepresentation
 from sage.structure.parent import Parent
-from sage.structure.element import AlgebraElement
+#from sage.structure.element import AlgebraElement
 from sage.combinat.free_module import CombinatorialFreeModule
 from sage.misc.bindable_class import BindableClass
 from sage.combinat.integer_vector import IntegerVectors_k
@@ -13,8 +13,13 @@ from sage.misc.cachefunc import cached_method
 #I am putting a superfluous comment here
 
 class BasisElement(CombinatorialFreeModule.Element):
+	r"""
+	Generic basis element. Only things we do here are define some printing methods.
+	"""
 	def __init__(self, *args, **kwds):
-
+		r"""
+		Initialize self.
+		"""
 		CombinatorialFreeModule.Element.__init__(self, *args, **kwds)
 
 		P = self.parent().realization_of()
@@ -22,9 +27,33 @@ class BasisElement(CombinatorialFreeModule.Element):
 		self.rename(self._get_print_name())
 
 	def _get_print_name(self):
-		raise NotImplementedError
+		r"""
+		Return a string which represents self.
+
+		This cannot be implemented at this level of generality.
+		"""
+		raise NotImplementedError('This should be implemented by subclasses')
 
 	def tikz(self, x_sep=0.5, y_sep=0.3):
+		r"""
+		Return tikz code to which draws a picture of this element.
+
+		INPUT:
+
+		- `x_sep` -- float; the distance between strands
+
+		- `y_sep` -- float; the vertical distance between crossings
+
+		OUTPUT: The tikz code which generates a picture of this element
+
+		NOTE:
+
+			Requires the following in your preamble:
+			`\usepackage{tikz}`
+			`\usetikzlibrary{positioning}`
+
+		Asks subclass for tikzmonomials (basis elements), receives them and lines them up with '+' in between them
+		"""
 		the_string = ""
 		mcs = self.monomial_coefficients()
 		first_term=True
@@ -48,9 +77,16 @@ class BasisElement(CombinatorialFreeModule.Element):
 		return the_string[1:]
 
 class XTElement(BasisElement):
+	'''
+	An element of the basis of a KLR algebra which has dots at the top of diagrams
+	and crossings at the bottom
+	'''
 
 	#Correct order
 	def _get_print_name(self):
+		'''
+
+		'''
 		mcs = self.monomial_coefficients()
 		if len(mcs) != 0:
 			new_name = ""
@@ -136,6 +172,10 @@ class XTElement(BasisElement):
 		return the_string
 
 class TXElement(BasisElement):
+	'''
+	An element of the basis of a KLR algebra which has crossings at the top of
+	diagrams and dots at the bottom
+	'''
 
 	#Correct Order
 	def _get_print_name(self):
@@ -226,6 +266,18 @@ class TXElement(BasisElement):
 
 class KLRAlgebra(UniqueRepresentation, Parent):
 	def __init__(self, base_ring, positive_root, signs=None, *args, **kwargs):
+		'''
+		base_ring is the ring over which to define this KLR algebra
+
+		positive_root is an element of the positive root lattice of some root
+		system. It knows which root system it came from.
+
+		signs is a function which takes as input two integers i and j, and
+		outputs either plus 1 or minus 1. Real people almost never need to
+		specify a non-default function.
+
+		there's a mysterious _custom_signs instance variable
+		'''
 		category = GradedAlgebras(base_ring)
 		self._base = base_ring
 		Parent.__init__(self, category=category.WithRealizations())
@@ -248,9 +300,10 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 
 		self._positive_root = positive_root
 
+		# I forget where I need to use the _custom_signs instance variable
 		if signs == None:
 			self._custom_signs = False
-			self._signs = lambda i, j: sign(j-i)
+			self._signs = lambda i, j: sign(j-i) #sign is a built-in sage function
 		else:
 			self._custom_signs = True
 			self._signs = signs
@@ -1038,11 +1091,11 @@ class KLRAlgebra(UniqueRepresentation, Parent):
 						new = self._reduce(word[:start]+(word[start+1], word[start], word[start+1])+word[start+3:], p)
 						c_ij = self.cartan_matrix()[new_p_m[k-1]-1][new_p_m[k]-1]
 						if c_ij < 0 and new_p_m[k-1] == new_p_m[k+1]:
-							new_g = self._Sn(())
+							new_g_m = self._Sn(())
 							new_p_r = p
 							new_p_l = new_p_m
 							for r in range(-c_ij):
-								new_v = self._IVn((0,)*(k-1) + (r,) + (0,) + (-1-c_ij-r,) + (0,)*(self._n-k-2))
+								new_v_m = self._IVn((0,)*(k-1) + (r,) + (0,) + (-1-c_ij-r,) + (0,)*(self._n-k-2))
 								new += self.signs(pair=(new_p_m[k-1]-1, new_p_m[k]-1)) * self._reduce(word[:start], new_p_l) * (self.monomial(self._CP((new_v_m, new_g_m, new_p_m))) * self._reduce(word[end:], new_p_r))
 						return new
 
